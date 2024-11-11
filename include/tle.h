@@ -11,6 +11,7 @@ struct tle_elements
 {
     double mean_anomaly;
     double eccentricity;
+    double arg_perigee;
     double raan_degree;
     double orb_inclination;
     double bstar;
@@ -26,7 +27,9 @@ struct tle_elements
     char * line2;
 };
 
-void parse_lines( struct tle_elements * tle, char * line1, char * line2 );
+int8_t parse_lines( struct tle_elements * tle, char * line1, char * line2 );
+
+bool check_tle_checksum( char * line1, char * line2 );
 
 #ifdef __cplusplus
 }
