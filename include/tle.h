@@ -35,4 +35,4 @@ bool check_tle_checksum( char * line1, char * line2 );
 }
 #endif
 
-#endif // !TLE_H_
+#endif // !TLE
