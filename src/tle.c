@@ -1,162 +1,177 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "../include/tle.h"
+#include "../include/utils.h"
 
-static double str_slice_to_double( char * str,
-                                   uint8_t index1,
-                                   uint8_t index2,
-                                   bool implied_decimal );
+static bool validate_tle_checksum( const char * tle_line, uint8_t line_number );
 
-static int32_t str_slice_to_int32( char * str, uint8_t index1, uint8_t index2 );
-
-static int64_t str_slice_to_int64( char * str, uint8_t index1, uint8_t index2 );
-
-static bool validate_tle_checksum( const char * tle_line );
-
-bool check_tle_checksum( char * line1, char * line2 )
+bool check_tle_checksum( const char * line1, const char * line2 )
 {
-    return validate_tle_checksum( line1 ) && validate_tle_checksum( line2 );
+    return validate_tle_checksum( line1, 1U ) &&
+           validate_tle_checksum( line2, 2U );
 }
 
-int8_t parse_lines( struct tle_elements * tle, char * line1, char * line2 )
+int8_t parse_lines( tle_elements_t * tle,
+                    const char * line1,
+                    const char * line2 )
 {
     int8_t err = -1;
 
     if( check_tle_checksum( line1, line2 ) )
     {
-        tle->line1 = line1;
-        tle->line2 = line2;
+        /* Satellite Number in string format */
+        ( void ) memcpy( tle->satnum, &line1[ 2 ], 5U );
 
-        tle->obj_number = str_slice_to_int32( line1, 2U, 7U );
+        /* Satellite Classification */
+        tle->classification = line1[ 7 ];
 
-        strncpy( tle->sat_designator, &line1[ 9 ], 8U );
+        /* Internation Designator */
+        ( void ) memcpy( tle->sat_designator, &line1[ 9 ], 6U );
 
-        tle->mean_motion_dot = str_slice_to_double( line1, 35U, 44U, true );
+        /* Ephemeris Type */
+        tle->eph_type = line1[ 62 ];
 
-        if( line1[ 33 ] == '-' )
+        /* Start of orbital elements parsing (With error handling for conversion
+         * errors) */
+
+        /* Temporary buffer for indirect conversions */
+        char buf[ 15 ] = { 0 };
+        /* Temporary exponent value */
+        int32_t e = 0;
+
+        ( void ) memcpy( buf, &line1[ 18 ], 2U );
+        err = str2int32( buf, &tle->epochyr );
+
+        if( err == 0 )
         {
-            tle->mean_motion_dot *= -1.0;
+            err = str2f64( &line1[ 20 ], &tle->epochdays );
         }
 
-        tle->mean_motion_ddot = str_slice_to_double( line1, 45U, 50U, true );
-
-        if( line1[ 44 ] == '-' )
+        if( err == 0 )
         {
-            tle->mean_motion_ddot *= -1.0;
+            err = str2f64( &line1[ 33 ], &tle->derivative_mean_motion );
         }
-        tle->mean_motion_ddot *= pow( 10.0,
-                                      str_slice_to_double( line1,
-                                                           50U,
-                                                           52U,
-                                                           false ) );
 
-        tle->bstar = str_slice_to_double( line1, 54U, 59U, true );
-        if( line1[ 53 ] == '-' )
+        if( err == 0 )
         {
-            tle->bstar *= -1.0;
+            buf[ 0 ] = line1[ 44 ];
+            buf[ 1 ] = '.';
+            ( void ) memcpy( &buf[ 2 ], &line1[ 45 ], 5U );
+            buf[ 2U + 5U ] = '\0';
+            err = str2f64( buf, &tle->second_derivative_mean_motion );
         }
-        tle->bstar *= pow( 10.0,
-                           str_slice_to_double( line1, 59U, 61U, false ) );
 
-        tle->elem_num = str_slice_to_int32( line1, 64U, 68U );
+        if( err == 0 )
+        {
+            err = str2int32( &line1[ 50 ], &e );
+        }
 
-        tle->orb_inclination = str_slice_to_double( line2, 8U, 16U, false );
+        if( err == 0 )
+        {
+            tle->second_derivative_mean_motion *= pow( 10.0, ( double ) e );
+        }
 
-        tle->raan_degree = str_slice_to_double( line2, 17U, 25U, false );
+        if( err == 0 )
+        {
+            buf[ 0 ] = line1[ 53 ];
+            buf[ 1 ] = '.';
+            ( void ) memcpy( &buf[ 2 ], &line1[ 54 ], 5U );
+            buf[ 2U + 5U ] = '\0';
+            err = str2f64( buf, &tle->bstar );
+        }
 
-        tle->eccentricity = str_slice_to_double( line2, 26U, 33U, true );
+        if( err == 0 )
+        {
+            err = str2int32( &line1[ 59 ], &e );
+        }
 
-        tle->arg_perigee = str_slice_to_double( line2, 34U, 42U, false );
+        if( err == 0 )
+        {
+            tle->bstar *= pow( 10.0, ( double ) e );
+        }
 
-        tle->mean_anomaly = str_slice_to_double( line2, 43U, 51U, false );
+        if( err == 0 )
+        {
+            ( void ) memcpy( buf, &line1[ 64 ], 4 );
+            buf[ 5 ] = '\0';
+            err = str2int32( buf, &tle->elemnum );
+        }
 
-        tle->mean_motion = str_slice_to_double( line2, 52U, 63U, false );
+        if( err == 0 )
+        {
+            err = str2f64( &line2[ 8 ], &tle->inclination );
+        }
 
-        tle->rev_number = str_slice_to_int64( line2, 63U, 68U );
+        if( err == 0 )
+        {
+            err = str2f64( &line2[ 17 ], &tle->raan_degree );
+        }
 
-        /* TODO EPOCH */
-        // tle->epoch = ?
+        if( err == 0 )
+        {
+            buf[ 0 ] = '.';
+            ( void ) memcpy( &buf[ 1 ], &line2[ 26 ], 7U );
+            buf[ 7 ] = '\0';
+            err = str2f64( buf, &tle->eccentricity );
+        }
+
+        if( err == 0 )
+        {
+            err = str2f64( &line2[ 34 ], &tle->arg_perigee );
+        }
+
+        if( err == 0 )
+        {
+            err = str2f64( &line2[ 43 ], &tle->mean_anomaly );
+        }
+
+        if( err == 0 )
+        {
+            ( void ) memcpy( buf, &line2[ 52 ], 11U );
+            buf[ 11 ] = '\0';
+            err = str2f64( buf, &tle->mean_motion );
+        }
+
+        if( err == 0 )
+        {
+            ( void ) memcpy( buf, &line2[ 63 ], 5 );
+            buf[ 5 ] = '\0';
+            err = str2int32( buf, &tle->revnum );
+        }
     }
 
     return err;
 }
 
-static double str_slice_to_double( char * str,
-                                   uint8_t index1,
-                                   uint8_t index2,
-                                   bool implied_decimal )
-{
-    double retval;
-    char tmp[ 16 ];
-
-    int32_t slice_size = index2 - index1;
-
-    if( implied_decimal )
-    {
-        tmp[ 0 ] = '0';
-        tmp[ 1 ] = '.';
-        strncpy( &tmp[ 2 ], &str[ index1 ], slice_size );
-        tmp[ slice_size + 2U ] = '\0';
-        retval = strtod( tmp, NULL );
-    }
-    else
-    {
-        strncpy( tmp, &str[ index1 ], slice_size );
-        tmp[ slice_size ] = '\0';
-        retval = strtod( tmp, NULL );
-    }
-
-    return retval;
-}
-
-static bool validate_tle_checksum( const char * tle_line )
+static bool validate_tle_checksum( const char * tle_line, uint8_t line_number )
 {
     int32_t checksum = 0;
+
+    uint8_t n = ( uint8_t ) tle_line[ 0 ] - ( uint8_t ) '0';
 
     for( uint8_t i = 0U; i < 68U; ++i )
     {
         char c = tle_line[ i ];
-        if( c >= '0' && c <= '9' )
+        if( ( c >= '0' ) && ( c <= '9' ) )
         {
-            checksum += c - '0'; // Convert character to integer and add
+            char c_as_int = c - '0';
+            checksum += ( int8_t ) c_as_int;
         }
         else if( c == '-' )
         {
             checksum += 1; // Minus sign counts as 1
         }
+        else
+        {
+            continue;
+        }
     }
 
-    return ( checksum % 10 ) == ( tle_line[ 68 ] - '0' );
-}
+    int8_t chksum_mod = ( int8_t ) ( checksum % 10 );
+    char tle_chksum = ( tle_line[ 68 ] - '0' );
 
-static int32_t str_slice_to_int32( char * str, uint8_t index1, uint8_t index2 )
-{
-    int32_t retval;
-    char tmp[ 16 ];
-
-    int32_t slice_size = index2 - index1;
-
-    strncpy( tmp, &str[ index1 ], slice_size );
-    tmp[ slice_size ] = '\0';
-    retval = strtoll( tmp, NULL, 10 );
-
-    return retval;
-}
-
-static int64_t str_slice_to_int64( char * str, uint8_t index1, uint8_t index2 )
-{
-    int64_t retval;
-    char tmp[ 16 ];
-
-    int32_t slice_size = index2 - index1;
-
-    strncpy( tmp, &str[ index1 ], slice_size );
-    tmp[ slice_size ] = '\0';
-    retval = strtoll( tmp, NULL, 10 );
-
-    return retval;
+    return ( chksum_mod == ( int8_t ) tle_chksum ) && ( line_number == n );
 }

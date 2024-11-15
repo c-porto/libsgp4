@@ -7,29 +7,33 @@ extern "C" {
 
 #include <stdint.h>
 
-struct tle_elements
+typedef struct
 {
     double mean_anomaly;
     double eccentricity;
     double arg_perigee;
     double raan_degree;
-    double orb_inclination;
+    double inclination;
     double bstar;
-    double mean_motion_ddot;
-    double mean_motion_dot;
+    double second_derivative_mean_motion;
+    double derivative_mean_motion;
     double mean_motion;
-    int32_t rev_number;
-    int32_t elem_num;
-    int32_t obj_number;
-    int64_t epoch;
-    char sat_designator[ 12 ];
-    char * line1;
-    char * line2;
-};
+    double epochdays;
+    int32_t epochyr;
+    int32_t revnum;
+    int32_t elemnum;
+    int32_t objnum;
+    char satnum[ 5 ];
+    char classification;
+    char sat_designator[ 6 ];
+    uint8_t eph_type;
+} tle_elements_t;
 
-int8_t parse_lines( struct tle_elements * tle, char * line1, char * line2 );
+int8_t parse_lines( tle_elements_t * tle,
+                    const char * line1,
+                    const char * line2 );
 
-bool check_tle_checksum( char * line1, char * line2 );
+bool check_tle_checksum( const char * line1, const char * line2 );
 
 #ifdef __cplusplus
 }

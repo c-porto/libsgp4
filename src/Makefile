@@ -10,12 +10,15 @@ FLAGS := -fpic -std=gnu99 -Wall -pedantic -Wshadow -Wpointer-arith -Wcast-qual -
 FLAGS += $(CC_FLAGS_APPEND)
 
 .PHONY: all
-all: $(BUILD_DIR)/tle.o
+all: $(BUILD_DIR)/tle.o $(BUILD_DIR)/utils.o
 
 $(BUILD_DIR)/sgp4.o: sgp4.c
 	$(CC) $(FLAGS) -c $< -o $@
 
 $(BUILD_DIR)/tle.o: tle.c
+	$(CC) $(FLAGS) -c $< -o $@
+
+$(BUILD_DIR)/utils.o: utils.c
 	$(CC) $(FLAGS) -c $< -o $@
 
 .PHONY: clean
