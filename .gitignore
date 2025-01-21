@@ -50,3 +50,11 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Editor configurations and build system
+**/.cache
+**/builddir
+**/build
+**/.vscode
+
+compile_commands.json
