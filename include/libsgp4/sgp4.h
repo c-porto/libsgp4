@@ -1,5 +1,5 @@
-#ifndef __sgp4header__
-#define __sgp4header__
+#ifndef SGP4_H_
+#define SGP4_H_
 
 #define wgs72old 1
 #define wgs72 2
@@ -9,13 +9,7 @@
 #define twopi  (2.0*pi)
 #define deg2rad  (pi/180.0)
 
-#ifdef __STDC_VERSION__
 #include <stdbool.h>
-#else
-typedef int bool;
-#endif
-#define TRUE 1
-#define FALSE 0
 
 /**
  * This class implements the elsetrec data type from Vallado's SGP4 code.

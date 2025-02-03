@@ -14,7 +14,7 @@ project(
 cc = meson.get_compiler('c')
 
 sgp4_srcs = files(
-  'src/SGP4.c',
+  'src/sgp4.c',
   'src/tle.c',
 )
 
