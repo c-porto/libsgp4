@@ -4,18 +4,83 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../include/tle.h"
+#include <libsgp4/tle.h>
 
 static double str_slice_to_double( char * str,
                                    uint8_t index1,
                                    uint8_t index2,
-                                   bool implied_decimal );
+                                   bool implied_decimal )
+{
+    double retval;
+    char tmp[ 16 ];
 
-static int32_t str_slice_to_int32( char * str, uint8_t index1, uint8_t index2 );
+    int32_t slice_size = index2 - index1;
 
-static int64_t str_slice_to_int64( char * str, uint8_t index1, uint8_t index2 );
+    if( implied_decimal )
+    {
+        tmp[ 0 ] = '0';
+        tmp[ 1 ] = '.';
+        strncpy( &tmp[ 2 ], &str[ index1 ], slice_size );
+        tmp[ slice_size + 2U ] = '\0';
+        retval = strtod( tmp, NULL );
+    }
+    else
+    {
+        strncpy( tmp, &str[ index1 ], slice_size );
+        tmp[ slice_size ] = '\0';
+        retval = strtod( tmp, NULL );
+    }
 
-static bool validate_tle_checksum( const char * tle_line );
+    return retval;
+}
+
+static int32_t str_slice_to_int32( char * str, uint8_t index1, uint8_t index2 )
+{
+    int32_t retval;
+    char tmp[ 16 ];
+
+    int32_t slice_size = index2 - index1;
+
+    strncpy( tmp, &str[ index1 ], slice_size );
+    tmp[ slice_size ] = '\0';
+    retval = strtoll( tmp, NULL, 10 );
+
+    return retval;
+}
+
+static int64_t str_slice_to_int64( char * str, uint8_t index1, uint8_t index2 )
+{
+    int64_t retval;
+    char tmp[ 16 ];
+
+    int32_t slice_size = index2 - index1;
+
+    strncpy( tmp, &str[ index1 ], slice_size );
+    tmp[ slice_size ] = '\0';
+    retval = strtoll( tmp, NULL, 10 );
+
+    return retval;
+}
+
+static bool validate_tle_checksum( const char * tle_line )
+{
+    int32_t checksum = 0;
+
+    for( uint8_t i = 0U; i < 68U; ++i )
+    {
+        char c = tle_line[ i ];
+        if( c >= '0' && c <= '9' )
+        {
+            checksum += c - '0'; // Convert character to integer and add
+        }
+        else if( c == '-' )
+        {
+            checksum += 1; // Minus sign counts as 1
+        }
+    }
+
+    return ( checksum % 10 ) == ( tle_line[ 68 ] - '0' );
+}
 
 bool check_tle_checksum( char * line1, char * line2 )
 {
@@ -83,80 +148,4 @@ int8_t parse_lines( struct tle_elements * tle, char * line1, char * line2 )
     }
 
     return err;
-}
-
-static double str_slice_to_double( char * str,
-                                   uint8_t index1,
-                                   uint8_t index2,
-                                   bool implied_decimal )
-{
-    double retval;
-    char tmp[ 16 ];
-
-    int32_t slice_size = index2 - index1;
-
-    if( implied_decimal )
-    {
-        tmp[ 0 ] = '0';
-        tmp[ 1 ] = '.';
-        strncpy( &tmp[ 2 ], &str[ index1 ], slice_size );
-        tmp[ slice_size + 2U ] = '\0';
-        retval = strtod( tmp, NULL );
-    }
-    else
-    {
-        strncpy( tmp, &str[ index1 ], slice_size );
-        tmp[ slice_size ] = '\0';
-        retval = strtod( tmp, NULL );
-    }
-
-    return retval;
-}
-
-static bool validate_tle_checksum( const char * tle_line )
-{
-    int32_t checksum = 0;
-
-    for( uint8_t i = 0U; i < 68U; ++i )
-    {
-        char c = tle_line[ i ];
-        if( c >= '0' && c <= '9' )
-        {
-            checksum += c - '0'; // Convert character to integer and add
-        }
-        else if( c == '-' )
-        {
-            checksum += 1; // Minus sign counts as 1
-        }
-    }
-
-    return ( checksum % 10 ) == ( tle_line[ 68 ] - '0' );
-}
-
-static int32_t str_slice_to_int32( char * str, uint8_t index1, uint8_t index2 )
-{
-    int32_t retval;
-    char tmp[ 16 ];
-
-    int32_t slice_size = index2 - index1;
-
-    strncpy( tmp, &str[ index1 ], slice_size );
-    tmp[ slice_size ] = '\0';
-    retval = strtoll( tmp, NULL, 10 );
-
-    return retval;
-}
-
-static int64_t str_slice_to_int64( char * str, uint8_t index1, uint8_t index2 )
-{
-    int64_t retval;
-    char tmp[ 16 ];
-
-    int32_t slice_size = index2 - index1;
-
-    strncpy( tmp, &str[ index1 ], slice_size );
-    tmp[ slice_size ] = '\0';
-    retval = strtoll( tmp, NULL, 10 );
-
-    return retval;
 }
