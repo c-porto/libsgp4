@@ -46,5 +46,7 @@ libsgp4 = library(
   dependencies: sgp4_deps,
   c_args: c_args,
   install: false,
+  version: meson.project_version(),
+  soversion: meson.project_version().split('.')[0],
   pic: true,
 )
